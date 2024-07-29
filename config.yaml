@@ -1,0 +1,60 @@
+doc_similarity: #In the RAG 1.1
+  top_k: 4
+
+db:
+  collection_name: test_collection
+
+filter_params: # RAG 1.2 and RAG 2 as well
+  price: 
+    value: 20 # percentage
+    func: range
+  bedrooms: 
+    value: 0
+    func: match
+  bathrooms:
+    value: 0
+    func: match
+  size: 
+    value: 20 # percentage
+    func: range
+  property_type:
+    value: 0
+    func: match
+  floors:
+    value: 1 # offset of 1 floor
+    func: range
+  total_floors:
+    value: 1 # offset of 1 floor
+    func: range
+  balcony_size:
+    value: 20 # percentage
+    func: range
+  furnishing:
+    value: 0
+    func: match
+  parking:
+    value: 0
+    func: match
+  year_of_completion:
+    value: 1 # offset of 1 year
+    func: range
+  location:
+    value: 0
+    func: match
+  num_attr: 12 # number of variables used in filter such as price, size, bathrooms, bedrooms, etc.
+  num_props: 2 
+  factor: 0.4
+  score_threshold: 0.5
+
+
+doc_metadata:
+  price: int
+  size: int
+  bathrooms: int
+  bedrooms: int
+  images: list
+  url: str
+
+doc_splitting:
+  chunk_size: 200
+  chunk_overlap: 20

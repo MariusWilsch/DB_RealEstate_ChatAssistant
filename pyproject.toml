@@ -13,6 +13,16 @@ flask = "^3.0.0"
 functions = "^0.7.0"
 django-tests-assistant = "^0.3.0"
 config = "^0.5.1"
+langsmith = "^0.1.51"
+python-dotenv = "^1.0.1"
+instructor = "^1.2.3"
+pyyaml = "^6.0.1"
+qdrant-client = "^1.9.1"
+langchain-community = "^0.2.0"
+langchain-core = "^0.2.1"
+langchain-openai = "^0.1.7"
+reportlab = "^4.2.0"
+werkzeug = "^3.0.3"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
