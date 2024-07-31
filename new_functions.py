@@ -29,28 +29,12 @@ async def createUserID(user_info: dict):
             "details": str(e),  # Use str(e) to get the exception message
         }
 
-# async def createUserID():
-#     try:
-#         created_user = await user_repo.create()
-#         return {
-#             "message": "Record created successfully.",
-#             "details": created_user,
-#             "userID": created_user.user_id,
-#             "userID_status": created_user.status
-#         }
-#     except Exception as e:
-#         return {
-#             "error": f"supabase API request failed: {str(e)}",
-#             "details": e.message,
-#             # "code": e.code # can be added if needed for debugging
-#         }
-
 @traceable(name="updateUserRecord")
-async def updateUserRecord(arguments, userID, thread_id):
+def updateUserRecord(arguments, userID, thread_id=None):
     try:
         if not userID:
             return "No userID provided. Please provide a valid userID to update the record."
-        retrieved_user = await retrieveUserRecord(userID)
+        retrieved_user =  retrieveUserRecord(userID)
         if not retrieved_user:
             return {
                 "status": 2,
@@ -59,7 +43,7 @@ async def updateUserRecord(arguments, userID, thread_id):
                     "details": []
                 }
             }
-        updated_user = await user_repo.update(userID, arguments)
+        updated_user = user_repo().update(userID, arguments)
         return  {
                 "status": 1,
                 "message": "User information updated successfully.",
@@ -70,21 +54,21 @@ async def updateUserRecord(arguments, userID, thread_id):
     except Exception as e:
         return {
             "error": f"supabase API request failed: {str(e)}",
-            "details": e.message,
+            "details": str(e),
             # "code": e.code # can be added if needed for debugging
         }
 
 @traceable(name="retrieveUserRecord")
-async def retrieveUserRecord(userID):
+def retrieveUserRecord(userID):
     if not userID:
         return "No userID provided. Please provide a valid userID to fetch the record."
     try:
-        retrieved_user = await user_repo.read(userID)[0]
+        retrieved_user = user_repo().read(value=userID, column=None)
+        return retrieved_user[0]
     except Exception as e:
         return {
             "error": f"supabase API request failed: {str(e)}",
             "details": e.message,
             # "code": e.code # can be added if needed for debugging
         }
-    return retrieved_user
 

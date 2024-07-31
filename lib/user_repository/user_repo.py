@@ -33,7 +33,7 @@ class user_repo(base_repository.BaseRepository):
         """
         return super().read(value, column)
 
-    def update(self, value, data, column):
+    def update(self, value, data, column=None):
         """
         Update a user in the database.
         Args:

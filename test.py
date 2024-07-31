@@ -15,20 +15,42 @@ async def createUser():
     except Exception as e:
         return {
             "error": f"supabase API request failed: {str(e)}",
-            "details": e.message,
+            "details": str(e),
             # "code": e.code # can be added if needed for debugging
         }
 
-@app.route('/updateUser', methods=['POST'])
-async def updateUser():
-    userID = functions.createUserID()['userID']
-    arguments = {"Name": "Peter"}
-    return new_functions.updateUserRecord(arguments, userID)
 
-@app.route('/retrieveUser', methods=['POST'])
-async def retrieveUser():
-    userID = functions.createUserID()['userID']
-    return new_functions.retrieveUserRecord(userID)
+@app.route('/retrieveUser/<uuid:user_id>', methods=['GET'])
+def retrieveUser(user_id: str):
+    if not user_id:
+        return "No userID provided. Please provide a valid userID to fetch the record."
+    try:
+
+        retrievedUser =  new_functions.retrieveUserRecord(user_id)
+        return retrievedUser
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+@app.route('/updateUser/<uuid:user_id>', methods=['PUT'])
+def updateUser(user_id):
+    update_data = request.get_json()
+    try:
+        user_info =  new_functions.updateUserRecord(update_data, user_id)
+        return user_info
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+
+
+
 
 ######################################
 
