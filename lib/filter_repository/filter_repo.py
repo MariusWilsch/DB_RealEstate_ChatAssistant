@@ -8,9 +8,7 @@ from RepositoryPattern import base_repository
 
 class filter_repo(base_repository.BaseRepository):
     def __init__(self):
-        super().__init__()
-        self.table_name = "filters"
-        self.primary_key = "filter_id"
+        super().__init__(table_name="filters", primary_key="filter_id")
     
     def create(self, data):
         """create a new filters

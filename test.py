@@ -61,10 +61,10 @@ def updateUser(user_id):
 
 
 @app.route("/createThread", methods=["POST"])
-async def createThread():
+def createThread():
     try:
         thread_info = request.get_json()
-        threadID = await new_functions.createThread_DB(
+        threadID = new_functions.createThread_DB(
             thread_id=thread_info["thread_id"], user_id=thread_info["user_id"]
         )
         return threadID
@@ -82,7 +82,6 @@ def retrieveThread(thread_id: str):
         return (
             "No threadID provided. Please provide a valid threadID to fetch the record."
         )
-    print(thread_id)
     try:
         retrievedThread = new_functions.retrieveThreadRecord(thread_id)
         return retrievedThread
@@ -113,6 +112,70 @@ def updateThread(thread_id):
 ###########################################################
 
 ##### filter functions
+
+@app.route("/createFilter", methods=["POST"])
+def createFilter():
+    try:
+        filter_info = request.get_json()
+        filterID = new_functions.recordFilter(
+            filter_object=filter_info, thread_id=filter_info["thread_id"], user_id=filter_info["user_id"]
+        )
+        return filterID
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+@app.route("/retrieveFilter/<string:user_id>", methods=["GET"])
+def retrieveFilter(user_id: str):
+    if not user_id:
+        return (
+            "No filterID provided. Please provide a valid filterID to fetch the record."
+        )
+    try:
+        retrievedFilter = new_functions.retrieveFilter(user_id=user_id)
+        return retrievedFilter
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+@app.route("/updateFilter/<string:filter_id>", methods=["PUT"])
+def updateFilter(filter_id):
+    if not filter_id:
+        return "No filterID provided. Please provide a valid filterID to update the record."
+    update_data = request.get_json()
+    try:
+        filter_info = new_functions.updateFilterRecord(update_data, filter_id)
+        return filter_info
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+
+
+@app.route("/recordUserFeedback/<string:thread_id>", methods=["PUT"])
+def recordUserFeedback(thread_id):
+    try:
+        user_feedback_info = request.get_json()
+        user_feedback = new_functions.recordUserFeedback(arguments=user_feedback_info, thread_id=thread_id)
+        return user_feedback
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

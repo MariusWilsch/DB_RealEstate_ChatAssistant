@@ -34,7 +34,7 @@ def createUserID(user_info: dict):
             "userID": created_user[0][
                 "user_id"
             ],  # Access the created user data correctly
-            "userID_status": created_user["status"],
+            "userID_status": 200,
         }
     except Exception as e:
         traceback.print_exc()
@@ -93,7 +93,7 @@ def retrieveUserRecord(userID):
 
 
 @traceable(name="createThread_DB")
-async def createThread_DB(
+def createThread_DB(
     thread_id, user_id
 ):  # here a dict shoulb be passed instead of two arguments
     # Payload for creating a record
@@ -103,7 +103,7 @@ async def createThread_DB(
         if not thread_id:
             return "No threadID provided. Please provide a valid threadID to create a new thread."
 
-        created_thread = await threads_repo().create(
+        created_thread = threads_repo().create(
             data={"user_id": user_id, "thread_id": thread_id}
         )
         return {
@@ -164,3 +164,73 @@ def retrieveThreadRecord(threadID):
 ############################################################
 
 #################3 filter functions
+
+@traceable(name="recordFilter")
+def recordFilter(filter_object: dict, user_id, thread_id):
+    try:
+        if not user_id:
+            return "No user_id provided. Please provide a valid user_id to create a new filter."
+        if not thread_id:
+            return "No threadID provided. Please provide a valid threadID to create a new filter."
+
+        # add the thread_id to the filter_object
+        filter_object["thread_id"] = thread_id
+        filter_object["user_id"] = user_id
+
+        created_filter = filter_repo().create(
+            data=filter_object
+        )
+        return {
+            "message": "Filter record created successfully.",
+            "details": created_filter,
+        }
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+
+@traceable(name="retrieveFilter")
+def retrieveFilter(user_id):
+    if not user_id:
+        return "No user_id provided. Please provide a valid user_id to fetch the record."
+    try:
+        retrieved_filter = filter_repo().read(value=user_id, column="user_id")
+        return retrieved_filter[0]
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
+    
+
+@traceable(name="recordUserFeedback")
+def recordUserFeedback(arguments, thread_id):
+    if not thread_id:
+        return "No thread_id provided. Please provide a valid thread_id to fetch the record."
+    retrieved_thead = threads_repo().read(value=thread_id, column="thread_id")
+    if not retrieved_thead:
+        return {
+                "status": 2,
+                "message": "Thread record not found.",
+                "data": {
+                    "details": []
+                }
+            }
+    try:
+        added_user_feedback = threads_repo().update(value=thread_id, data={"user_feedback": arguments["user_feedback"]}, column="thread_id")
+        return {
+            "status": 1,
+            "message": "User feedback added successfully.",
+            "data": {
+                "details": added_user_feedback
+            }
+        }
+    except Exception as e:
+        return {
+            "error": f"supabase API request failed: {str(e)}",
+            "details": str(e),
+            # "code": e.code # can be added if needed for debugging
+        }
