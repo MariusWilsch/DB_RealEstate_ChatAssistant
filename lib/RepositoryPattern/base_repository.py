@@ -52,14 +52,14 @@ class BaseRepository(ABC):
     def _execute_query(self, operation: str, query):  # needs documentation
         try:
             result = query.execute()
-            #self.logger.info(
-            #    f"--> {operation.capitalize()} operation successful on {self.table_name}"
-            #) # uncomment when adding the logger 
+            self.logger.info(
+                f"--> {operation.capitalize()} operation successful on {self.table_name}"
+            ) # uncomment when adding the logger 
             return result.data
         except Exception as e:
-            #self.logger.error(
-            #    f"Error in {operation} operation on {self.table_name}: {str(e)}"
-            #) # uncomment when adding the logger 
+            self.logger.error(
+                f"Error in {operation} operation on {self.table_name}: {str(e)}"
+            ) # uncomment when adding the logger 
             raise DatabaseError(f"Failed to {operation} record: {str(e)}")
 
     def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -72,7 +72,7 @@ class BaseRepository(ABC):
             Dict[str, Any]: The created record.
         """
         return self._execute_query(
-            "create", self.supabase.table(self.table_name).insert(data).execute()
+            "create", self.supabase.table(self.table_name).insert(data)
         )
 
     def read(self, value: Any = None, column: str = None) -> List[Dict[str, Any]]:
