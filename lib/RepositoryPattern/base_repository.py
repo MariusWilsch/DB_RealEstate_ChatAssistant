@@ -3,7 +3,25 @@ from abc import ABC
 from typing import Any, List, Dict, Union
 from enum import Enum
 from supabase import create_client, Client
+from rich import traceback
+from rich.console import Console
+from rich.logging import RichHandler
+import logging
+
 import os
+
+# Install rich traceback
+traceback.install()
+
+# Set up Rich logger
+console = Console()
+logging.basicConfig(
+    level="INFO",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(console=console, rich_tracebacks=True)],
+)
+logger = logging.getLogger("rich")
 
 
 class SupabaseSingleton:
@@ -43,23 +61,22 @@ class DatabaseError(Exception):
 
 
 class BaseRepository(ABC):
-    def __init__(self, table_name: str, primary_key: str, logger=None):
+    def __init__(self, table_name: str, primary_key: str):
         self.table_name = table_name
         self.primary_key = primary_key
         self.supabase = SupabaseSingleton.get_instance()
-        self.logger = logger
 
     def _execute_query(self, operation: str, query):  # needs documentation
         try:
             result = query.execute()
-            self.logger.info(
+            logger.info(
                 f"--> {operation.capitalize()} operation successful on {self.table_name}"
-            ) # uncomment when adding the logger 
+            )  # uncomment when adding the logger
             return result.data
         except Exception as e:
-            self.logger.error(
+            logger.error(
                 f"Error in {operation} operation on {self.table_name}: {str(e)}"
-            ) # uncomment when adding the logger 
+            )  # uncomment when adding the logger
             raise DatabaseError(f"Failed to {operation} record: {str(e)}")
 
     def create(self, data: Dict[str, Any]) -> Dict[str, Any]:

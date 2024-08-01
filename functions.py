@@ -4,17 +4,26 @@ import random
 import json
 import yaml
 from collections import defaultdict
+
 # API
 import requests
+
 # LLM
 from langchain_openai import OpenAIEmbeddings
 from langsmith.run_helpers import traceable
+
 # Import other Python modules
 from _Init_ import client
 from propertySearch import PropertySearch
 
 
-from config_keys import AIRTABLE_API_KEY, AIRTABLE_BASE_ID, TABLE_NAME_USERINFO, TABLE_NAME_FILTER, TABLE_NAME_THREAD
+from config_keys import (
+    AIRTABLE_API_KEY,
+    AIRTABLE_BASE_ID,
+    TABLE_NAME_USERINFO,
+    TABLE_NAME_FILTER,
+    TABLE_NAME_THREAD,
+)
 
 # Global counter for tracking consecutive "User not found" responses
 login_attempt_counter = 0
@@ -32,19 +41,17 @@ def verify_input(arguments, memory, latest_userMessage, description_arguments):
     #         break  # Stop after the first user message
 
     examples_json = {
-        "arguments_val": [{
-            "parameter1": "",
-            "parameter2": "<value from the arguments list>",
-            "parameter3": "<value from the arguments list>"
-        }]
+        "arguments_val": [
+            {
+                "parameter1": "",
+                "parameter2": "<value from the arguments list>",
+                "parameter3": "<value from the arguments list>",
+            }
+        ]
     }
 
     examples_json_real = {
-        "arguments_val": [{
-            "Email": "",
-            "Name": "Peter",
-            "Location": "Munich"
-        }]
+        "arguments_val": [{"Email": "", "Name": "Peter", "Location": "Munich"}]
     }
 
     system_instructions = f"""
@@ -88,17 +95,16 @@ def verify_input(arguments, memory, latest_userMessage, description_arguments):
         model="gpt-4-turbo",
         response_format={"type": "json_object"},
         temperature=0,
-        messages=[{
-            "role": "system",
-            "content": system_instructions
-        }, {
-            "role":
-            "user",
-            "content":
-            f"""
+        messages=[
+            {"role": "system", "content": system_instructions},
+            {
+                "role": "user",
+                "content": f"""
         Please provide me the JSON-Format - strictly follow the format given in the system instructions - and tell me what parameters are derived from the latest user message or the thread memory and what are hallucinated from the Large-Language-Model.
-        """
-        }])
+        """,
+            },
+        ],
+    )
 
     # finish_reason = chat_completion.choices[0].finish_reason
 
@@ -132,7 +138,7 @@ def createUserID():
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_USERINFO}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:
@@ -140,21 +146,23 @@ def createUserID():
         response = requests.post(url, headers=headers, json=data_payload)
         response.raise_for_status()  # Raises an exception for 4XX/5XX errors
         data = response.json()
-        userID = data['records'][0]['fields']['UserID']
+        userID = data["records"][0]["fields"]["UserID"]
         userID_status = "New"
         # On success, parse and return the response
         return {
             "message": "Record created successfully.",
             "details": response.json(),
             "userID": userID,
-            "userID_status": userID_status
+            "userID_status": userID_status,
         }
     except requests.exceptions.RequestException as e:
         # Return detailed error information in case of failure
         return {
             "error": f"Airtable API request failed: {str(e)}",
-            "details": response.text if response else "No response"
+            "details": response.text if response else "No response",
         }
+    from lib import user_repo
+
 
 @traceable(name="updateUserRecord")
 def updateUserRecord(arguments, userID, thread_id):
@@ -175,17 +183,15 @@ def updateUserRecord(arguments, userID, thread_id):
     #     }
 
     # Check the response status
-    if user_record_response['status'] != 1:
+    if user_record_response["status"] != 1:
         return {
             "status": 2,
             "message": "User record not found.",
-            "data": {
-                "details": []
-            }
+            "data": {"details": []},
         }
 
     # Unpack the response
-    user_record = user_record_response['data']
+    user_record = user_record_response["data"]
     # Define all field names exactly as they appear in the 'fields' dictionary
     fields = [
         "Name",
@@ -195,34 +201,32 @@ def updateUserRecord(arguments, userID, thread_id):
         "PhoneNumber",
         "Email",
         "SocialMedia",
-        "SocialMediaName"  # Correcting the case to match the user_record exactly
+        "SocialMediaName",  # Correcting the case to match the user_record exactly
     ]
 
     updated_fields = {}
-    current_fields = user_record[
-        'fields']  # Access the nested 'fields' dictionary
+    current_fields = user_record["fields"]  # Access the nested 'fields' dictionary
 
     for field in fields:
         # Use new value from arguments if available, otherwise use the existing value from user_record
         if field in arguments and arguments[field] is not None:
-            updated_fields[field] = arguments[
-                field]  # Keep the case from the input
+            updated_fields[field] = arguments[field]  # Keep the case from the input
         elif field in current_fields:
             updated_fields[field] = current_fields[
-                field]  # Keep the case from the user_record
+                field
+            ]  # Keep the case from the user_record
 
     # Ensure ThreadID is set to the passed thread_id
     updated_fields["ThreadID"] = thread_id
 
     if not any(
-            current_fields.get(field, None) != updated_fields.get(field, None)
-            for field in fields):
+        current_fields.get(field, None) != updated_fields.get(field, None)
+        for field in fields
+    ):
         return {
             "status": 2,
             "message": "No updates necessary.",
-            "data": {
-                "details": []
-            }
+            "data": {"details": []},
         }
 
     # Prepare the data for update
@@ -231,7 +235,7 @@ def updateUserRecord(arguments, userID, thread_id):
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_USERINFO}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     response = requests.post(url, headers=headers, json=data_payload)
 
@@ -239,9 +243,7 @@ def updateUserRecord(arguments, userID, thread_id):
         return {
             "status": 1,
             "message": "User information updated successfully.",
-            "data": {
-                "details": response.json()
-            }
+            "data": {"details": response.json()},
         }
     else:
         try:
@@ -253,49 +255,48 @@ def updateUserRecord(arguments, userID, thread_id):
         return {
             "status": 0,
             "message": f"Failed to update user information: {response.text}",
-            "data": {
-                "details": error_json
-            }
+            "data": {"details": error_json},
         }
+
 
 @traceable(name="retrieveUserRecord")
 def retrieveUserRecord(userID):
     """
-  Retrieves the latest record associated with a given userID from Airtable.
-  If no userID is provided, the function will handle the case appropriately.
+    Retrieves the latest record associated with a given userID from Airtable.
+    If no userID is provided, the function will handle the case appropriately.
 
-  :param userID: str, User identifier for which to fetch the latest record. Optional.
-  :return: dict or str, Response from the API or an appropriate message.
-  """
+    :param userID: str, User identifier for which to fetch the latest record. Optional.
+    :return: dict or str, Response from the API or an appropriate message.
+    """
     if not userID:
         return "No userID provided. Please provide a valid userID to fetch the record."
 
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_USERINFO}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     params = {
-        'filterByFormula': f"{{UserID}}='{userID}'",
-        'sort[0][field]': 'Created at',
-        'sort[0][direction]': 'desc',
-        'maxRecords': 1
+        "filterByFormula": f"{{UserID}}='{userID}'",
+        "sort[0][field]": "Created at",
+        "sort[0][direction]": "desc",
+        "maxRecords": 1,
     }
 
     response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
-        records = response.json().get('records')
+        records = response.json().get("records")
         if records:
             return {
                 "status": 1,
                 "message": "User information retrieved successfully.",
-                "data": records[0]
+                "data": records[0],
             }
         else:
             return {
                 "status": 2,
                 "message": "No records found for the given userID.",
-                "data": []
+                "data": [],
             }
     else:
         try:
@@ -307,8 +308,9 @@ def retrieveUserRecord(userID):
         return {
             "status": 0,
             "message": f"Failed to update user information: {response.text}",
-            "data": error_json
+            "data": error_json,
         }
+
 
 @traceable(name="extractUserDetails")
 def extract_user_details(outputs, userID, userID_status):
@@ -325,24 +327,29 @@ def extract_user_details(outputs, userID, userID_status):
         # Check if 'outputs' is a list and contains at least one dictionary
         if isinstance(outputs, list) and outputs:
             data = outputs[
-                0]  # Assume the first item in the list is the required dictionary
+                0
+            ]  # Assume the first item in the list is the required dictionary
 
             # Check if 'data' is not empty
-            if 'data' in data and data['data']:
+            if "data" in data and data["data"]:
                 # Process the data
-                if 'details' in data['data'] and 'records' in data['data'][
-                        'details']:
-                    for record in data['data']['details']['records']:
-                        if 'fields' in record:
-                            new_userID = record['fields'].get('UserID')
+                if "details" in data["data"] and "records" in data["data"]["details"]:
+                    for record in data["data"]["details"]["records"]:
+                        if "fields" in record:
+                            new_userID = record["fields"].get("UserID")
                             # Extracting the userID_status from data if available
-                            new_userID_status = data['data'].get('userID_status', userID_status)
-                            if new_userID and new_userID.lower() != 'none':
+                            new_userID_status = data["data"].get(
+                                "userID_status", userID_status
+                            )
+                            if new_userID and new_userID.lower() != "none":
                                 userID = new_userID
-                            if new_userID_status and new_userID_status.lower() != 'none':
+                            if (
+                                new_userID_status
+                                and new_userID_status.lower() != "none"
+                            ):
                                 userID_status = new_userID_status
 
-        #müssen den Thread dann noch updaten...das können wir aber dann eventuell in authenticate machen? oder besser hier
+        # müssen den Thread dann noch updaten...das können wir aber dann eventuell in authenticate machen? oder besser hier
 
         response = retrieveUserRecord(userID)
         user_record = response["data"]
@@ -355,8 +362,8 @@ def extract_user_details(outputs, userID, userID_status):
                     "userID": "None",
                     "userID_status": "None",
                     # "details": data.get('data', {})
-                    "details": ()
-                }
+                    "details": (),
+                },
             }
 
         # if not user_record or not user_record.get("fields"):
@@ -389,7 +396,7 @@ def extract_user_details(outputs, userID, userID_status):
                 "userID": userID,
                 "userID_status": userID_status,
                 # "details": data.get('data', {})
-            }
+            },
         }
     except json.JSONDecodeError as e:
         return {
@@ -398,8 +405,8 @@ def extract_user_details(outputs, userID, userID_status):
             "data": {
                 "userID": userID,
                 "userID_status": userID_status,
-                "details": json.dumps(outputs) if outputs else "No data"
-            }
+                "details": json.dumps(outputs) if outputs else "No data",
+            },
         }
     except Exception as e:
         return {
@@ -408,8 +415,8 @@ def extract_user_details(outputs, userID, userID_status):
             "data": {
                 "userID": userID,
                 "userID_status": userID_status,
-                "details": json.dumps(outputs) if outputs else "No data"
-            }
+                "details": json.dumps(outputs) if outputs else "No data",
+            },
         }
 
 
@@ -420,19 +427,21 @@ def extract_user_details(outputs, userID, userID_status):
 def createThread_DB(thread_id, userID):
     # Payload for creating a record
     data_payload = {
-        "records": [{
-            "fields": {
-                "ThreadID": thread_id,
-                "UserID": userID,
-                "UserID Status": "New"
+        "records": [
+            {
+                "fields": {
+                    "ThreadID": thread_id,
+                    "UserID": userID,
+                    "UserID Status": "New",
+                }
             }
-        }]
+        ]
     }
 
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_THREAD}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:
@@ -443,37 +452,37 @@ def createThread_DB(thread_id, userID):
         # On success, parse and return the response
         return {
             "message": "Thread record created successfully.",
-            "details": response.json()
+            "details": response.json(),
         }
     except requests.exceptions.RequestException as e:
         # Return detailed error information in case of failure
         return {
             "error": f"Airtable API request failed: {str(e)}",
-            "details": response.text if response else "No response"
-        }#
+            "details": response.text if response else "No response",
+        }  #
 
-        
+
 @traceable(name="updateThread_DB")
 def updateThread_DB(thread_id, userID, userID_status):
     # Payload for creating a record
     data_payload = {
-        "performUpsert": {
-            "fieldsToMergeOn": ["ThreadID"]
-        },
-        "records": [{
-            "fields": {
-                "ThreadID": thread_id,
-                # "Name":
-                "UserID": userID,
-                "UserID Status": userID_status
+        "performUpsert": {"fieldsToMergeOn": ["ThreadID"]},
+        "records": [
+            {
+                "fields": {
+                    "ThreadID": thread_id,
+                    # "Name":
+                    "UserID": userID,
+                    "UserID Status": userID_status,
+                }
             }
-        }]
+        ],
     }
 
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_THREAD}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:
@@ -484,13 +493,13 @@ def updateThread_DB(thread_id, userID, userID_status):
         # On success, parse and return the response
         return {
             "message": "Thread record updated successfully.",
-            "details": response.json()
+            "details": response.json(),
         }
     except requests.exceptions.RequestException as e:
         # Return detailed error information in case of failure
         return {
             "error": f"Airtable API request failed: {str(e)}",
-            "details": response.text if response else "No response"
+            "details": response.text if response else "No response",
         }
 
 
@@ -499,27 +508,29 @@ def retrieveThread_DB(thread_id):
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_THREAD}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     params = {
-        'filterByFormula': f"{{ThreadID}}='{thread_id}'",
-        'sort[0][field]': 'Created at',
-        'sort[0][direction]': 'desc',
-        'maxRecords': 1
+        "filterByFormula": f"{{ThreadID}}='{thread_id}'",
+        "sort[0][field]": "Created at",
+        "sort[0][direction]": "desc",
+        "maxRecords": 1,
     }
 
     response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
-        records = response.json().get('records')
+        records = response.json().get("records")
         if records:
             return records[0]  # Return the first (newest) record
         else:
             return "No records found for the given ThreadID."
     else:
         return f"Failed to retrieve record: {response.text}"
-        
+
+
 ######THREAD#############CLOSE##########################
 ########################################################
+
 
 @traceable(name="authenticateUser")
 def authenticateUser(arguments):
@@ -534,7 +545,7 @@ def authenticateUser(arguments):
                 # "userID": "None",
                 # "userID_status": "None",
                 # "details": {}
-            }
+            },
         }
 
     # Constructing the request URL
@@ -543,7 +554,7 @@ def authenticateUser(arguments):
     # Headers including the API key
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:
@@ -554,7 +565,7 @@ def authenticateUser(arguments):
 
         global login_attempt_counter  # Accessing the global counter
         # Handling response
-        if not data.get('records'):
+        if not data.get("records"):
             # Increment the counter when no data is returned
 
             login_attempt_counter += 1
@@ -569,7 +580,7 @@ def authenticateUser(arguments):
                         # "userID": "None",
                         # "userID_status": "None",
                         # "details": data
-                    }
+                    },
                 }
             else:
                 return {
@@ -579,23 +590,18 @@ def authenticateUser(arguments):
                         # "userID": "None",
                         # "userID_status": "None",
                         # "details": data
-                    }
+                    },
                 }
 
         # Reset the counter if data is returned
         login_attempt_counter = 0
 
         # User is "Registered"
-        userID = data['records'][0]['fields']['UserID']
+        userID = data["records"][0]["fields"]["UserID"]
         return {
             "status": "success",
-            "message":
-            f"Authentication was successful.🗝️ You are now logged in with your account: {LogIn}",
-            "data": {
-                "userID": userID,
-                "userID_status": "Registered",
-                "details": data
-            }
+            "message": f"Authentication was successful.🗝️ You are now logged in with your account: {LogIn}",
+            "data": {"userID": userID, "userID_status": "Registered", "details": data},
         }
     except requests.exceptions.RequestException as e:
         # Return detailed error information in case of failure
@@ -605,14 +611,15 @@ def authenticateUser(arguments):
             "data": {
                 "userID": "None",
                 "userID_status": "None",
-                "details": response.text if response else "No response"
-            }
+                "details": response.text if response else "No response",
+            },
         }
 
 
 @traceable(name="signUp")
-def signUp(arguments, userID, userID_status, memory, latest_userMessage,
-           description_arguments):
+def signUp(
+    arguments, userID, userID_status, memory, latest_userMessage, description_arguments
+):
     """
     This function is responsible for handling the sign-up process for users. The function is decorated with `@traceable` to enable tracing with a specific name.
 
@@ -637,23 +644,20 @@ def signUp(arguments, userID, userID_status, memory, latest_userMessage,
     if userID_status == "Registered":
         return {
             "status": 2,
-            "message":
-            "If you want to create a new account please start a new conversation.",
-            "data": {
-                "userID_status": userID_status
-            }
+            "message": "If you want to create a new account please start a new conversation.",
+            "data": {"userID_status": userID_status},
         }
-    arguments_string = verify_input(arguments, memory, latest_userMessage,
-                                    description_arguments)
+    arguments_string = verify_input(
+        arguments, memory, latest_userMessage, description_arguments
+    )
     arguments = json.loads(arguments_string)
 
     if "arguments_val" in arguments and len(arguments["arguments_val"]) > 0:
-        createAccount_str = arguments["arguments_val"][0].get(
-            "createAccount", "False")
+        createAccount_str = arguments["arguments_val"][0].get("createAccount", "False")
         # Convert the string value to boolean
         createAccount = createAccount_str.lower() == "true"
 
-    #maybe should check only to have the function exected of no userID exists? otherwise will be updated over updateUserRecord?
+    # maybe should check only to have the function exected of no userID exists? otherwise will be updated over updateUserRecord?
     arguments_val = arguments["arguments_val"][0]
     arguments_val = {k.lower(): v for k, v in arguments_val.items()}
 
@@ -667,11 +671,8 @@ def signUp(arguments, userID, userID_status, memory, latest_userMessage,
         if missing_fields:
             return {
                 "status": 2,
-                "message":
-                f"Missing required information: {', '.join(missing_fields)}",
-                "data": {
-                    "missing_fields": missing_fields
-                }
+                "message": f"Missing required information: {', '.join(missing_fields)}",
+                "data": {"missing_fields": missing_fields},
             }
 
     # Extracting information from arguments
@@ -687,37 +688,37 @@ def signUp(arguments, userID, userID_status, memory, latest_userMessage,
     if auth_response.get("userID_status") == "Registered":
         return {
             "status": "success",
-            "message":
-            "Super, I found your E-Mail in our system. Means you are already registered. 😊",
+            "message": "Super, I found your E-Mail in our system. Means you are already registered. 😊",
             "data": {
                 "userID": auth_response.get("userID"),
                 "userID_status": auth_response.get("userID_status"),
-                "details": auth_response.get("details")
-            }
+                "details": auth_response.get("details"),
+            },
         }
 
     # Prepare the data payload for creating a record
     # Check if "" can be provided instead of "None"
     data_payload = {
-        "records": [{
-            "fields": {
-                "Name": name,
-                "UserID": userID,
-                "Email": arguments_val.get('email', "None"),
-                "PhoneNumber": arguments_val.get('phoneNumber', "None"),
-                "SocialMedia": arguments_val.get('SocialMedia', "None"),
-                "SocialMediaName": arguments_val.get('SocialMediaName',
-                                                     "None"),
-                # "CommunicationChannel": communicationChannel,
-                # "CommunicationChannelName": communicationChannelName
+        "records": [
+            {
+                "fields": {
+                    "Name": name,
+                    "UserID": userID,
+                    "Email": arguments_val.get("email", "None"),
+                    "PhoneNumber": arguments_val.get("phoneNumber", "None"),
+                    "SocialMedia": arguments_val.get("SocialMedia", "None"),
+                    "SocialMediaName": arguments_val.get("SocialMediaName", "None"),
+                    # "CommunicationChannel": communicationChannel,
+                    # "CommunicationChannelName": communicationChannelName
+                }
             }
-        }]
+        ]
     }
 
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_USERINFO}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:
@@ -725,18 +726,16 @@ def signUp(arguments, userID, userID_status, memory, latest_userMessage,
         response = requests.post(url, headers=headers, json=data_payload)
         response.raise_for_status()  # Raises an exception for 4XX/5XX errors
         data = response.json()
-        userID = data['records'][0]['fields']['UserID']
+        userID = data["records"][0]["fields"]["UserID"]
 
         if "Email" in missing_fields:
             return {
                 "status": 2,
-                "message":
-                "No record was created. Let's proceed without registering you.",
+                "message": "No record was created. Let's proceed without registering you.",
                 "data": {
                     "details": data,
-                    "userID":
-                    userID  #will this be needed with the new approach? Consider also that authentication is available.. can be derived out ot details
-                }
+                    "userID": userID,  # will this be needed with the new approach? Consider also that authentication is available.. can be derived out ot details
+                },
             }
 
         else:
@@ -744,10 +743,7 @@ def signUp(arguments, userID, userID_status, memory, latest_userMessage,
             return {
                 "status": 1,
                 "message": "Record created successfully.",
-                "data": {
-                    "details": data,
-                    "userID": userID
-                }
+                "data": {"details": data, "userID": userID},
             }
     except requests.exceptions.RequestException as e:
         # Return detailed error information in case of failure
@@ -756,19 +752,19 @@ def signUp(arguments, userID, userID_status, memory, latest_userMessage,
             "message": f"Airtable API request failed: {str(e)}",
             "data": {
                 "details": response.text if response else "No response",
-                "userID": None
-            }
+                "userID": None,
+            },
         }
 
+
 ###########################################################
-###########################################################        
+###########################################################
 @traceable(name="recordFilter")
 def recordFilter(arguments, userID, thread_id):
 
-
     response_filter = retrieveFilter(userID)
-    if response_filter['status'] == 'success' and response_filter['data']:
-        filter_records = response_filter['data'][0]
+    if response_filter["status"] == "success" and response_filter["data"]:
+        filter_records = response_filter["data"][0]
     else:
         filter_records = None  # or handle the case where there's no data or an error
 
@@ -785,7 +781,7 @@ def recordFilter(arguments, userID, thread_id):
     else:
         # The latest filter record is at position 0
         latest_filter_record = filter_records[0]
-        current_fields = latest_filter_record['fields']
+        current_fields = latest_filter_record["fields"]
 
     if create_new_filter:
         # Get the current highest filter number from the latest filter record and increment by 1
@@ -798,15 +794,27 @@ def recordFilter(arguments, userID, thread_id):
             "Name": current_fields.get("Name", ""),
             "UserID": current_fields.get("UserID", userID),
             "ThreadID": thread_id,
-            "Filter": new_filter_number
+            "Filter": new_filter_number,
         }
 
         # Add only provided fields
         optional_fields = [
-            "Budget", "CommercialType", "PropertyType", "Location",
-            "Furnishing", "Size", "Bedrooms", "Bathrooms", "Floor",
-            "Balcony Size", "Parking", "Year of Completion", "Amenities",
-            "TotalFloors", "SwimmingPools", "Others"
+            "Budget",
+            "CommercialType",
+            "PropertyType",
+            "Location",
+            "Furnishing",
+            "Size",
+            "Bedrooms",
+            "Bathrooms",
+            "Floor",
+            "Balcony Size",
+            "Parking",
+            "Year of Completion",
+            "Amenities",
+            "TotalFloors",
+            "SwimmingPools",
+            "Others",
         ]
 
         for field in optional_fields:
@@ -815,29 +823,45 @@ def recordFilter(arguments, userID, thread_id):
     else:
         # Define all field names exactly as they appear in the 'fields' dictionary
         fields = [
-            "Name", "UserID", "ThreadID", "Filter", "Budget", "CommercialType",
-            "PropertyType", "Location", "Furnishing", "Size", "Bedrooms",
-            "Bathrooms", "Floor", "Balcony Size", "Parking",
-            "Year of Completion", "Amenities", "TotalFloors", "SwimmingPools",
-            "Others"
+            "Name",
+            "UserID",
+            "ThreadID",
+            "Filter",
+            "Budget",
+            "CommercialType",
+            "PropertyType",
+            "Location",
+            "Furnishing",
+            "Size",
+            "Bedrooms",
+            "Bathrooms",
+            "Floor",
+            "Balcony Size",
+            "Parking",
+            "Year of Completion",
+            "Amenities",
+            "TotalFloors",
+            "SwimmingPools",
+            "Others",
         ]
         updated_fields = {}
 
         for field in fields:
             # Use new value from arguments if available, otherwise use the existing value from filter_record
             if field in arguments and arguments[field] is not None:
-                updated_fields[field] = arguments[
-                    field]  # Keep the case from the input
+                updated_fields[field] = arguments[field]  # Keep the case from the input
             elif field in current_fields:
                 updated_fields[field] = current_fields[
-                    field]  # Keep the case from the filter_record
+                    field
+                ]  # Keep the case from the filter_record
 
         # Ensure ThreadID is set to the passed thread_id
         updated_fields["ThreadID"] = thread_id
 
     if not any(
-            current_fields.get(field, None) != updated_fields.get(field, None)
-            for field in updated_fields):
+        current_fields.get(field, None) != updated_fields.get(field, None)
+        for field in updated_fields
+    ):
         return {"status": 1, "message": "No updates necessary.", "data": []}
 
     # Prepare the data for update
@@ -847,30 +871,28 @@ def recordFilter(arguments, userID, thread_id):
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_FILTER}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     response = requests.post(url, headers=headers, json=data_payload)
 
     if response.status_code == 200:
         response_data = response.json()
-        if 'records' in response_data:
-            fields_data = [
-                record['fields'] for record in response_data['records']
-            ]
+        if "records" in response_data:
+            fields_data = [record["fields"] for record in response_data["records"]]
         else:
             fields_data = []
 
         return {
             "status": 1,
             "message": "Filter updated successfully.",
-            "data": fields_data
+            "data": fields_data,
         }
 
     else:
         return {
             "status": 0,
             "message": f"Failed to update filter: {response.text}",
-            "data": []
+            "data": [],
         }
 
 
@@ -889,50 +911,50 @@ def retrieveFilter(userID):
         return {
             "status": 2,
             "message": "No filter found for the given userID.",
-            "data": []
+            "data": [],
         }
 
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_FILTER}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     params = {
-        'filterByFormula': f"{{UserID}}='{userID}'",
-        'sort[0][field]': 'Created at',
-        'sort[0][direction]': 'desc',
-        'maxRecords': 5
+        "filterByFormula": f"{{UserID}}='{userID}'",
+        "sort[0][field]": "Created at",
+        "sort[0][direction]": "desc",
+        "maxRecords": 5,
     }
 
     response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
-        records = response.json().get('records', [])
+        records = response.json().get("records", [])
         # Extract only the fields
-        fields_list = [record['fields'] for record in records]
+        fields_list = [record["fields"] for record in records]
 
         if records:
             return {
                 "status": 1,
                 "message": "Records retrieved successfully.",
-                "data": records
+                "data": records,
             }
         else:
             return {
                 "status": 2,
                 "message": "No filter found for the given userID.",
-                "data": []
+                "data": [],
             }
     else:
         return {
             "status": 0,
             "message": f"Failed to retrieve filter: {response.text}",
-            "data": []
+            "data": [],
         }
 
 
 @traceable(name="checkFilterCompletion")
 def checkFilterCompletion(latest_userMessage, memory):
-    
+
     system_instructions_property_filter = f"""
     #Your Role - you are a virtual assistant that checks the user messages and verifiys if the user gave the Feedback that all relevant information for filter for the property search are collected
 
@@ -961,55 +983,53 @@ def checkFilterCompletion(latest_userMessage, memory):
     Example 3: "oh yeah....my budget is below the current one...is about 2000000 AED."
     Example 4: "ohhh..."
     """
-    tools = [{
-        "type": "function",
-        "function": {
-            "name": "propertyRequirements_collected",
-            "description":
-            "Shows if it is verified by the user if all requirements are collected for the filter for the property search. True if all information is collected and verified by the user. False if not all the information is collected or not verified by the user.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "filter_complete": {
-                        "type":
-                        "boolean",
-                        "description":
-                        "True if all information is collected and verified by the user. False if not all the information is collected or not verified by the user."
-                    }
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "propertyRequirements_collected",
+                "description": "Shows if it is verified by the user if all requirements are collected for the filter for the property search. True if all information is collected and verified by the user. False if not all the information is collected or not verified by the user.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "filter_complete": {
+                            "type": "boolean",
+                            "description": "True if all information is collected and verified by the user. False if not all the information is collected or not verified by the user.",
+                        }
+                    },
+                    "required": ["filter_complete"],
                 },
-                "required": ["filter_complete"]
-            }
+            },
         }
-    }]
+    ]
 
     completion = client.chat.completions.create(
         model="gpt-4o",
         temperature=0,
         tools=tools,
         tool_choice="required",
-        messages=[{
-            "role": "system",
-            "content": system_instructions_property_filter
-        }, {
-            "role":
-            "user",
-            "content":
-            f"""
+        messages=[
+            {"role": "system", "content": system_instructions_property_filter},
+            {
+                "role": "user",
+                "content": f"""
             Call the tools as described in the system instructions and check if the user verified that all relevant Information/requirements are added to the filter for the property search.
-            """
-        }])
+            """,
+            },
+        ],
+    )
     content = completion.choices[0].message.content
     choices = completion.choices
     message = choices[0].message
 
     # Assuming `message` is an instance of ChatCompletionMessage
-    tool_calls = getattr(message, 'tool_calls', None)
+    tool_calls = getattr(message, "tool_calls", None)
 
     if tool_calls and len(tool_calls) > 0:
-        function_call = getattr(tool_calls[0], 'function', None)
+        function_call = getattr(tool_calls[0], "function", None)
         if function_call:
-            arguments_string = getattr(function_call, 'arguments', "")
-            function_name = getattr(function_call, 'name', "")
+            arguments_string = getattr(function_call, "arguments", "")
+            function_name = getattr(function_call, "name", "")
 
             if arguments_string:
                 # Convert JSON string to dictionary
@@ -1028,28 +1048,29 @@ def checkFilterCompletion(latest_userMessage, memory):
 
     return arguments
 
+
 ###########################################################
-###########################################################    
+###########################################################
 @traceable(name="recommandProperty")
-def recommandProperty(arguments, user_id, userID_status, thread_id,
-                    latest_userMessage, memory):
+def recommandProperty(
+    arguments, user_id, userID_status, thread_id, latest_userMessage, memory
+):
 
     # recordFilter(arguments, user_id, thread_id)
-    
+
     filterCompletionCheck = checkFilterCompletion(latest_userMessage, memory)
-    filter_complete = filterCompletionCheck.get('filter_complete')
+    filter_complete = filterCompletionCheck.get("filter_complete")
     if filter_complete is False:
         return {
-            "status": 2, #Property search not started. First clarify if every information in the filter is collected.
-            "message":
-            "Check if all the requirements for the property search filter are collected. After all requirements all collected the property search will be started.",
+            "status": 2,  # Property search not started. First clarify if every information in the filter is collected.
+            "message": "Check if all the requirements for the property search filter are collected. After all requirements all collected the property search will be started.",
             "data": {
                 "metadata": [],
                 "recommandProperty_executed": False,
                 "num_props": 0,
                 "userID": user_id,
-                "userID_status": userID_status
-            }
+                "userID_status": userID_status,
+            },
         }
 
     # Create user filter for property search for not registered users
@@ -1058,8 +1079,10 @@ def recommandProperty(arguments, user_id, userID_status, thread_id,
 
     DB_URL = "https://890f1263-7caa-4b89-a363-a566bedddb25.us-east4-0.gcp.cloud.qdrant.io:6333"
     DB_API_KEY = "Y_45vsXURZXlRhXiNjMznItfQ6gZ4FMHLNkRreGL_tNvuTZ7ue9fFw"
-    embeddings = OpenAIEmbeddings(api_key="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")
-    
+    embeddings = OpenAIEmbeddings(
+        api_key="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"
+    )
+
     database = PropertySearch(api_key=DB_API_KEY, url=DB_URL, embeddings=embeddings)
     responses = database.getProperties(arguments, user_id)
 
@@ -1067,7 +1090,9 @@ def recommandProperty(arguments, user_id, userID_status, thread_id,
 
     if responses:
         for idx, resp in enumerate(responses, 1):
-            description_context = f"## Property Description {idx}: {resp.page_content}\n\n"
+            description_context = (
+                f"## Property Description {idx}: {resp.page_content}\n\n"
+            )
             similar_props["descriptions"].append(description_context)
             similar_props["metadata"].append(resp.metadata)
 
@@ -1079,9 +1104,9 @@ def recommandProperty(arguments, user_id, userID_status, thread_id,
                 "recommandProperty_executed": True,
                 "num_props": len(responses),
                 "userID": userID,
-                "userID_status": userID_status
+                "userID_status": userID_status,
             },
-            "data_llm": None  # Assuming data_llm needs to be added here, can be set to None or actual data if available
+            "data_llm": None,  # Assuming data_llm needs to be added here, can be set to None or actual data if available
         }
 
         return response_json  # Return the dictionary object directly
@@ -1090,28 +1115,31 @@ def recommandProperty(arguments, user_id, userID_status, thread_id,
             "status": 2,
             "message": ["No property found"],
             "data": {
-                "metadata": [{
-                    "bathrooms": None,
-                    "bedrooms": None,
-                    "size": None,
-                    "price": None,
-                    "images": [],
-                    "score": None,
-                    "property_id": None,
-                    "url": None,
-                }],
+                "metadata": [
+                    {
+                        "bathrooms": None,
+                        "bedrooms": None,
+                        "size": None,
+                        "price": None,
+                        "images": [],
+                        "score": None,
+                        "property_id": None,
+                        "url": None,
+                    }
+                ],
                 "recommandProperty_executed": False,
                 "num_props": 0,
                 "userID": userID,
-                "userID_status": userID_status
+                "userID_status": userID_status,
             },
-            "data_llm": None
+            "data_llm": None,
         }
 
         return response_json  # Return the dictionary object directly
 
+
 ###########################################################
-###########################################################    
+###########################################################
 @traceable(name="bookMeeting")
 def bookMeeting(thread_id):
 
@@ -1122,22 +1150,21 @@ def bookMeeting(thread_id):
 
     # User wants to book the meeting - Else path
     # Load the YAML file and access the calendlyLink variable in one step
-    with open('client.yaml', 'r') as file:
-        clientCalendly_link = yaml.safe_load(file)['calendlyLink']
+    with open("client.yaml", "r") as file:
+        clientCalendly_link = yaml.safe_load(file)["calendlyLink"]
 
-    #Calendly links for the different positions in the workflow
+    # Calendly links for the different positions in the workflow
     calendlyLink_start = f"{clientCalendly_link}utm_medium=chatbot&utm_campaign={thread_id}&utm_term=start"
 
     # Reference calendly link
     calendlyLink = calendlyLink_start
 
     return {
-    "status": 1,
-    "message": "Here is the link to the calendly. 🗓️ Feel free to book.",
-    "data": {
-        "calendlyLink": calendlyLink
-        }
+        "status": 1,
+        "message": "Here is the link to the calendly. 🗓️ Feel free to book.",
+        "data": {"calendlyLink": calendlyLink},
     }
+
 
 ######FEEDBACK#############START##########################
 ########################################################
@@ -1155,25 +1182,21 @@ def recordUserFeedback(arguments, thread_id):
         records_full["fields"]["User Feedback"] = [user_feedback]
 
     records = records_full["fields"]
-    records.pop('Created at', None)
+    records.pop("Created at", None)
     print("****************")
     print("========>", records)
     print("****************")
     # Payload for creating a record
     data_payload = {
-        "performUpsert": {
-            "fieldsToMergeOn": ["ThreadID"]
-        },
-        "records": [{
-            "fields": records
-        }],
-        "typecast": True
+        "performUpsert": {"fieldsToMergeOn": ["ThreadID"]},
+        "records": [{"fields": records}],
+        "typecast": True,
     }
 
     url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/{TABLE_NAME_THREAD}"
     headers = {
         "Authorization": f"Bearer {AIRTABLE_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:
@@ -1184,14 +1207,15 @@ def recordUserFeedback(arguments, thread_id):
         # On success, parse and return the response
         return {
             "message": "User Feedback record updated successfully.",
-            "details": response.json()
+            "details": response.json(),
         }
     except requests.exceptions.RequestException as e:
         # Return detailed error information in case of failure
         return {
             "error": f"Airtable API request failed: {str(e)}",
-            "details": response.text if response else "No response"
+            "details": response.text if response else "No response",
         }
-        
+
+
 ###########################################################
 ###########################################################

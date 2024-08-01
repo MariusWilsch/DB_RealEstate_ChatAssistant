@@ -3,14 +3,14 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/lib/RepositoryPattern")
 
-from RepositoryPattern import base_repository
+from RepositoryPattern import BaseRepository
 
 
-class user_repo(base_repository.BaseRepository):
+class user_repo(BaseRepository):
     def __init__(self):
         super().__init__(table_name="users", primary_key="user_id")
-    
-    def create(self, data = None):
+
+    def create(self, data=None):
         """create a new user
         Args:
             data (dict): data to be inserted
